@@ -1,0 +1,32 @@
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.deps import require_admin
+from app.models.proverb import ProverbCreate, ProverbResponse, ProverbUpdate
+from app.services.rag import add_proverb, update_proverb
+
+
+router = APIRouter()
+
+
+@router.post("/proverbs", response_model=ProverbResponse)
+async def create_proverb(payload: ProverbCreate, _admin=Depends(require_admin)):
+    try:
+        proverb = add_proverb(payload.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ProverbResponse(**proverb)
+
+
+@router.put("/proverbs/{proverb_id}", response_model=ProverbResponse)
+async def update_proverb_route(proverb_id: str, payload: ProverbUpdate, _admin=Depends(require_admin)):
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    try:
+        proverb = update_proverb(proverb_id, updates)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return ProverbResponse(**proverb)
